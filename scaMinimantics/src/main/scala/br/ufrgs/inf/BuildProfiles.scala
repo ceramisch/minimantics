@@ -39,9 +39,9 @@ class BuildProfiles{
     targets = targets.map{ case(k, v) => (k, v.withEntropy(calculateEntropy(v.count, v.links))) }
 
     for(k <- targets.keys){
-      var t = targets(k)
+      val t = targets(k)
       t.links.map{ case(a, b) =>
-        var c: WordCount = contexts(a)
+        val c: WordCount = contexts(a)
         calculateAndPrintAM(t.word, t.id, c.word, c.id, b, t.count, c.count, t.entropy, c.entropy)
       }
     }
