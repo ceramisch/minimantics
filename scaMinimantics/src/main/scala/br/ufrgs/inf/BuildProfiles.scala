@@ -134,7 +134,6 @@ object BuildProfiles {
   def main(args: Array[String]){
     println("Running Build Profiles - Scala")
     val bp = new BuildProfiles;
-    //
     bp.readInputFile("/home/jkmvsanchez/Dropbox/code/minimantics/src/mini.2.s.filter.t4.c4.tc2.u")
     bp.calculate()
   }
