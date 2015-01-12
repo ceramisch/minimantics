@@ -313,7 +313,7 @@ object Minimantics {
 
       //Calculate Similarity
       val cs1 = profiles.map { case (word1, word2, profiles) => (word1, Map(word2 -> profiles(getProfilesType(AssocName).id)))}.reduceByKey(_ ++ _)
-      val withSumAndSumSquare = cs1.map(m => calculateSumAndSumSquare(m._1, m._2))
+      val withSumAndSumSquare = cs1.map(m => calculateSumAndSumSquare(m._1, m._2)).cache()
       val cs3 = withSumAndSumSquare.cartesian(withSumAndSumSquare).filter { m => m._1._1 > m._2._1}
       val cs4 = cs3.map(m => ((m._1._1, m._2._1), calcSim(m._1._1, m._1._4, m._2._1, m._2._4, m._1._2, m._2._2, m._1._3, m._2._3)))
       val cs5 = cs4.map { case ((k1, k2), (cosine, wjaccard, lin, l1, l2, jsd, randomic, askew1, askew2)) => outputSim(k1, k2, List(cosine, wjaccard, lin, l1, l2, jsd, randomic, askew1, askew2))}
