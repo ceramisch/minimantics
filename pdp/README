@@ -1,0 +1,13 @@
+This project requires:
+SBT
+Scala
+Spark
+
+To build:
+sbt/sbt assembly
+
+To run:
+$SPARK_DIR/bin/spark-submit --class br.ufrgs.inf.Minimantics PATH/pdp/target/scala-2.10/Minimantics-assembly-0.0.1.jar iINPUT_FILE oOUTPUT_FILE S0.2 acond_prob
+
+For example:
+/opt/spark/bin/spark-submit --class br.ufrgs.inf.Minimantics /home/user/pdp/target/scala-2.10/Minimantics-assembly-0.0.1.jar ifile:///mini.1.s.filter.t10.c10.tc2.u ofile:///res S0.2 acond_prob

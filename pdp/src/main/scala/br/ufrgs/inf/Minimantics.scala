@@ -40,7 +40,7 @@ object Minimantics {
 
   val Alpha:Double  = 0.99
   val Nalpha:Double = 0.01
-  val RandMax = 32767 //32768
+  val RandMax = 32767
   val NumSimScores:Int = 9
   val NumSimScores2: Int = 6
   val Undefined: Double = 99999.0
@@ -53,6 +53,8 @@ object Minimantics {
   var SimThresh: Option[Double] = None
   var DistThresh: Option[Double] = None
   var calculateDistances:Boolean = true
+  var InFile = ""
+  var OutFile = ""
 
   def getScoresType(id: Int): Scores = {
     id match {
@@ -91,16 +93,18 @@ object Minimantics {
     println("Usage: ")
   }
 
-  def treatOptions(opt: String, value: String) = {
+  def treatOptions(opt: Char, value: String) = {
     opt match {
-      case "a" => println("a"); AssocName = value
-      case "s" => println("s")
-      case "t" => println("t")
-      case "n" => println("n")
-      case "c" => println("c")
-      case "A" => println("A"); AssocThresh = Some(value.toDouble)
-      case "S" => println("S"); SimThresh = Some(value.toDouble)
-      case "D" => println("D"); DistThresh = Some(value.toDouble)
+      case 'i' => println("i"); InFile = value
+      case 'o' => println("o"); OutFile = value
+      case 'a' => println("a"); AssocName = value
+      case 's' => println("s")
+      case 't' => println("t")
+      case 'n' => println("n")
+      case 'c' => println("c")
+      case 'A' => println("A"); AssocThresh = Some(value.toDouble)
+      case 'S' => println("S"); SimThresh = Some(value.toDouble)
+      case 'D' => println("D"); DistThresh = Some(value.toDouble)
       case _ => usage()
     }
   }
@@ -291,46 +295,43 @@ object Minimantics {
   }
 
   def process (master: String) = {
-    val sc = new SparkContext(master, "Minimantics", System.getenv("SPARK_HOME"))  
+    if(!InFile.isEmpty && !OutFile.isEmpty) {
+      val sc = new SparkContext(master, "Minimantics", System.getenv("SPARK_HOME"))
 
-    val input = sc.textFile("hdfs://ufrgsjvsmaster:9000/user/hduser/bnc.txt")
+      val input = sc.textFile(InFile)
 
-    //Build Profiles
-    val words = input.map(line => line.split("\t"))
-    val target = words.map(line => (line(0), (line(2).toInt, Map(line(1) -> line(2).toInt) ))).reduceByKey((x,y) => (x._1 + y._1, ((x._2)++y._2)))
-    val nPairs = target.map(m => m._2._1).sum
-    val resT = target.map(m => (m._1, (m._2._1, m._2._2, calculateEntropy(m._2._1, m._2._2))))
-    val context = words.map(line => (line(1), (line(2).toInt, Map((line(0), line(2).toInt)) ))).reduceByKey((x,y) => (x._1 + y._1, ((x._2)++y._2)))
-    val resC = context.map(m => (m._1, (m._2._1, m._2._2, calculateEntropy(m._2._1, m._2._2))))
+      //Build Profiles
+      val words = input.map(line => line.split(" "))
+      val target = words.map(line => (line(0), (line(2).toInt, Map(line(1) -> line(2).toInt)))).reduceByKey((x, y) => (x._1 + y._1, ((x._2) ++ y._2)))
+      val nPairs = target.map(m => m._2._1).sum
+      val resT = target.map(m => (m._1, (m._2._1, m._2._2, calculateEntropy(m._2._1, m._2._2))))
+      val context = words.map(line => (line(1), (line(2).toInt, Map((line(0), line(2).toInt))))).reduceByKey((x, y) => (x._1 + y._1, ((x._2) ++ y._2)))
+      val resC = context.map(m => (m._1, (m._2._1, m._2._2, calculateEntropy(m._2._1, m._2._2))))
 
-    val newT: org.apache.spark.rdd.RDD[(String, (String, Int, Int, Double))] = resT.flatMap {case (t, (i, map, e)) => map.toList.map { case (k, v) => (k, (t, i, v, e)) } }
-    val profiles = newT.join(resC).map(res => calculate(res._2._1._1, res._1, res._2._1._3, res._2._1._2, res._2._2._1, res._2._1._4, res._2._2._3, nPairs))
-    
-    //Calculate Similarity
-    val cs1 = profiles.map{ case (word1, word2, profiles) => (word1, Map(word2 -> profiles(getProfilesType(AssocName).id)))}.reduceByKey(_ ++ _)
-    val withSumAndSumSquare = cs1.map(m => calculateSumAndSumSquare(m._1, m._2))
-    val cs3 = withSumAndSumSquare.cartesian(withSumAndSumSquare).filter{ m => m._1._1 > m._2._1 }
-    val cs4 = cs3.map(m => ((m._1._1, m._2._1), calcSim(m._1._1, m._1._4, m._2._1, m._2._4, m._1._2, m._2._2, m._1._3, m._2._3)))
-    val cs5 = cs4.map{case((k1, k2), (cosine, wjaccard, lin, l1, l2, jsd, randomic, askew1, askew2)) => outputSim(k1, k2, List(cosine, wjaccard, lin, l1, l2, jsd, randomic, askew1, askew2))}
-    val filtro = cs5.filter{m => m != None}
-    val last = filtro.flatMap{m => m.productIterator.toList.map{ m => m }}
+      val newT: org.apache.spark.rdd.RDD[(String, (String, Int, Int, Double))] = resT.flatMap { case (t, (i, map, e)) => map.toList.map { case (k, v) => (k, (t, i, v, e))}}
+      val profiles = newT.join(resC).map(res => calculate(res._2._1._1, res._1, res._2._1._3, res._2._1._2, res._2._2._1, res._2._1._4, res._2._2._3, nPairs))
 
-    profiles.saveAsTextFile("/tmp")
+      //Calculate Similarity
+      val cs1 = profiles.map { case (word1, word2, profiles) => (word1, Map(word2 -> profiles(getProfilesType(AssocName).id)))}.reduceByKey(_ ++ _)
+      val withSumAndSumSquare = cs1.map(m => calculateSumAndSumSquare(m._1, m._2))
+      val cs3 = withSumAndSumSquare.cartesian(withSumAndSumSquare).filter { m => m._1._1 > m._2._1}
+      val cs4 = cs3.map(m => ((m._1._1, m._2._1), calcSim(m._1._1, m._1._4, m._2._1, m._2._4, m._1._2, m._2._2, m._1._3, m._2._3)))
+      val cs5 = cs4.map { case ((k1, k2), (cosine, wjaccard, lin, l1, l2, jsd, randomic, askew1, askew2)) => outputSim(k1, k2, List(cosine, wjaccard, lin, l1, l2, jsd, randomic, askew1, askew2))}
+      val filtro = cs5.filter { m => m != None}
+      val last = filtro.flatMap { m => m.productIterator.toList.map { m => m}}
 
-    sc.stop()
+      profiles.saveAsTextFile(OutFile)
+
+      sc.stop()
+    }
   }
 
   def main(args: Array[String]) {
+    println("<> Starting ... ")
     if(args.length > 0){
       for(i <- args){
-        val x = i.split(":")
-        treatOptions(x(0), x(1))
+        treatOptions(i.head, i.tail)
       }
-      println(s"args: $SimThresh - $AssocName")
-    } else{
-      treatOptions("S", "0.2")
-      treatOptions("a", Profiles.cond_prob.name)
-      println(s"$SimThresh - $AssocName")
     }
     process("local")
   }
