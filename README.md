@@ -10,13 +10,13 @@ corpus, no filtering or counting, no sorting.
 
 Does not support triple-based measures as standard Lin.
 
-Running :
+Running:
 
     # compile the programs
     make                        
   
     # Filter out verbs/nouns freq < 10, pairs freq < 2
-  ./filterRaw.sh mini.1 10 2   
+    ./filterRaw.sh mini.1 10 2   
   
     # Calculate target-context association scores
     ./build_profiles mini.1.s.filter.t10.c10.tc2.u > mini.1.profiles
