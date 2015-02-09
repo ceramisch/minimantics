@@ -24,3 +24,22 @@ cut -d "        " -f 1,2,3,4,5 mini.1.sim-th0.2 | tail -n +2 >  mini.1.sim-th0.2
 ./evalAll-perverb.sh mini.1.sim-th0.2.cosine # -> HAS BUGS
   # Generalize contexts of similar targets, get new pairs. Use -h for doc
 ./generalize -S 0.5 mini.1.sim-th0.2 mini.1.profiles -> NOT FINISHED
+
+
+
+Minimantics also provides some scripts for the evaluation:
+ # Adding a "wordnet path_similarity" column
+./minimantics-sort-output.sh mini.1.sim-th0.2 | head -n 100 | ./add_wnpath.py -k10 v >mini.1.wnpath
+
+ # Eval and print averages for the 'wnpath' column
+cat mini.1.wnpath | ./csv_statistics.py 'wnpath' -d target --print-global
+
+ # Taking a minimantics-style CSV and using the `cosine` field to solve TOEFL
+cat wbst-nanews.v.test | ./solve_toefl.py -a mini.1.sim-th0.2 'cosine'
+
+ # Checking how TOEFL is being solved
+head wbst-nanews.v.test | ./solve_toefl.py -as mini.1.sim-th0.2 'cosine'
+
+ # Seeing for which lines we have data in wbst-nanews.v.test
+cat wbst-nanews.v.test | ./solve_toefl.py -s mini.1.sim-th0.2 'cosine' | grep $'\t[^?]'
+
