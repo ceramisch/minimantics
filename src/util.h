@@ -7,7 +7,8 @@
 #define MAX_S 50 // Maximum length of a word
 
 #define PRODLOG(a,b) a != 0 ? a * log(b) : 0 // avoids calculating log(0) in LL
-#define perr( a ) fprintf( stderr, a )
+#define perr( a ) fprintf( stderr, a ) // print to stderr
+#define perra( a, ... ) fprintf( stderr, a, __VA_ARGS__ ) // same + arguments
 #define N_SIM_SCORES 9 // Number of calculated similarity/distance scores
 // Score types: similarity or distance?
 #define T_SIM 0
@@ -36,7 +37,6 @@ typedef struct _target_contexts {
 } target_contexts;
 
 typedef struct _word_count {
-  char *word;
   int id;
   double count;
   GHashTable *links;
@@ -53,9 +53,11 @@ int get_index_column_name( FILE *input, char *column_name );
 int store_t_c( GHashTable *dict, char *t, int id_t, int id_c, double value );
 void destroy_word_count( gpointer wc );
 void destroy_target_context( gpointer tc );
-void insert_into_index( GHashTable *hash, char *w1, char *w2, double count, 
-                        int *id_counter );
-void run_multi_threaded( void *function, int nb_threads );                        
+void insert_into_index( GHashTable *hash, GHashTable *symbols, 
+                        GHashTable *inv_symbols, char *w1, char *w2, int lenw1,
+                        int lenw2, double count, int *id_counter );
+void run_multi_threaded( void *function, int nb_threads );  
+
 
 
 #endif

@@ -149,10 +149,10 @@ void read_input_file( char *filename ) {
   assoc_index = get_index_column_name( input, assoc_name );
   // test if the assoc_name is a valid column header
   if( assoc_index < 4 ) {
-    fprintf( stderr, "Column named \"%s\" not found!\n", assoc_name );
-    fprintf( stderr, "You must specify a valid -a option. Chose among " );
-    fprintf( stderr, "IN-FILE column headers.\nRemember that the first " ); 
-    fprintf( stderr, "four fields cannot be used as association scores.\n" );
+    perra( "Column named \"%s\" not found!\n", assoc_name );
+    perr( "You must specify a valid -a option. Chose among " );
+    perr( "IN-FILE column headers.\nRemember that the first " ); 
+    perr( "four fields cannot be used as association scores.\n" );
     exit(-1);
   }
   // Read the input file.
@@ -168,7 +168,7 @@ double rel_entropy_smooth( double p1, double p2 ) {
   if( p1 != 0.0 ) {
     if( p1 > 1.0 || p2 > 1.0 ) {
       if( !warned_rel_entropy ) {
-        fprintf( stderr, "Warning: Relative entropy requires probabilities\n" );
+        perr( "Warning: Relative entropy requires probabilities\n" );
         warned_rel_entropy = TRUE;
       }
     }

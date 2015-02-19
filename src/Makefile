@@ -15,8 +15,8 @@ EXEC = calculate_similarity build_profiles
 
 all: $(EXEC) 
 
-build_profiles: build_profiles.c
-	$(CC) $(CCFLAGS) -o $@ $^ $(OBJ) $(LIBS) 
+build_profiles: build_profiles.c $(OBJ)
+	$(CC) $(CCFLAGS) -o $@ $^ $(LIBS) 
 	
 calculate_similarity:  calculate_similarity.c $(OBJ)
 	$(CC) $(CCFLAGS) -o $@ $^ $(LIBS) 

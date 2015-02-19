@@ -10,13 +10,14 @@ int score_types[ N_SIM_SCORES ] = { T_SIM, T_SIM, T_SIM, T_DIST, T_DIST, T_DIST,
                                     T_RAND, T_DIST, T_DIST };
                                     
 extern void usage();
+int idc_symbol = 0;
 
 /******************************************************************************/
 
 FILE *open_file_read( char *filename ) {
   FILE *result = fopen( filename, "r" ); 
   if( !result ) {
-    fprintf( stderr, "Error opening file %s\n", filename );
+    perra( "Error opening file %s\n", filename );
     usage();
   }
   return result;
@@ -54,10 +55,10 @@ int should_keep( char *word, GHashTable *filter ) {
 double parse_thresh_option( char *thresh, char opt_n ) {
   double result;
   if( !sscanf( thresh, "%lf", &result ) ) {
-    fprintf( stderr, "Option -%c ignored. Must be a real value\n", opt_n );
+    perra( "Option -%c ignored. Must be a real value\n", opt_n );
   }
   else {
-    fprintf( stderr, "Using threshold -%c = %lf.\n", opt_n, result );
+    perra( "Using threshold -%c = %lf.\n", opt_n, result );
   }
   return result;
 }
@@ -78,7 +79,7 @@ int get_index_column_name( FILE *input, char *column_name ) {
       header_name[ i ] = '\0';
       if( strcmp( header_name, column_name ) == 0 ){ 
         column_index = h_counter; 
-        fprintf( stderr, "Using column named: %s\n", header_name );        
+        perra( "Using column named: %s\n", header_name );        
       }
       h_counter++;       
       i = 0;
@@ -88,7 +89,7 @@ int get_index_column_name( FILE *input, char *column_name ) {
   header_name[ i ] = '\0'; // verifie le dernier
   if( strcmp( header_name, column_name ) == 0 ){ 
     column_index = h_counter; 
-    fprintf( stderr, "Using column named: %s\n", header_name );        
+    perra( "Using column named: %s\n", header_name );        
   }
   return column_index;
 }
@@ -127,43 +128,64 @@ int store_t_c( GHashTable *dict, char *t, int id_t, int id_c, double value ) {
 /******************************************************************************/
 
 void destroy_word_count( gpointer wc ) {
-  free( ((word_count *)wc)->word );
-  g_hash_table_destroy( ((word_count *)wc)->links );
+  g_hash_table_destroy( ( ( word_count * )wc )->links );
+  free( ( word_count * )wc );
 }
 
 /******************************************************************************/
 
 void destroy_target_context( gpointer tc ) {
-  g_hash_table_destroy( ((target_contexts *)tc)->contexts );
-  free( ((target_contexts *)tc)->target );
-  free((target_contexts *)tc);
+  g_hash_table_destroy( ( ( target_contexts * )tc )->contexts );
+  free( ( ( target_contexts * )tc )->target );
+  free( ( target_contexts * )tc );  
 }
 
 /******************************************************************************/
 
-word_count *create_word_count( char *word, int id ) {
+word_count *create_word_count( int id ) {
   word_count *result = malloc( sizeof( word_count ) );
-  result->word = word;
   result->id = id;
   result->count = 0;
   result->entropy = ENTROPY_UNDEFINED;
-  result->links = g_hash_table_new_full(&g_str_hash,&g_str_equal,NULL,free);
+  result->links = g_hash_table_new_full(&g_int_hash, &g_int_equal, NULL, free);
   return result;
 }
 
 /******************************************************************************/
 
-void insert_into_index( GHashTable *hash, char *w1, char *w2, double count, 
-                        int *id_counter ) {
-  word_count *value_in_hash = g_hash_table_lookup( hash, w1 );
+int *get_id( GHashTable *symbols_dict, GHashTable *inv_symbols_dict, 
+             char *entry_buff, int entry_len ){
+  int *id = g_hash_table_lookup( symbols_dict, entry_buff );
+  if( !id ) {
+    char *entry = malloc( sizeof( char ) * ( entry_len + 1 ) );
+    strcpy( entry, entry_buff );
+    id = malloc( sizeof( int ) );
+    *id = idc_symbol++;
+    g_hash_table_insert( symbols_dict, entry, id );
+    g_hash_table_insert( inv_symbols_dict, id, entry );    
+  }
+  return id;
+} 
+
+/******************************************************************************/
+
+void insert_into_index( GHashTable *hash, GHashTable *symbols, 
+                        GHashTable *inv_symbols, char *w1, char *w2, int lenw1,
+                        int lenw2, double count, int *id_counter ) {
+  int *idw1 = get_id( symbols, inv_symbols, w1, lenw1 );
+  int *idw2 = get_id( symbols, inv_symbols, w2, lenw2 );  
+  word_count *value_in_hash = g_hash_table_lookup( hash, idw1 );
   double *link_count = malloc( sizeof( double ) );
   if( ! value_in_hash ) {
-    value_in_hash = create_word_count( w1, (*id_counter)++ );    
-    g_hash_table_insert( hash, w1, value_in_hash );
+    value_in_hash = create_word_count( (*id_counter)++ );
+    g_hash_table_insert( hash, idw1, value_in_hash );
   }
   value_in_hash->count += count;
   *link_count = count;
-  g_hash_table_insert(value_in_hash->links, w2, link_count);
+  if( g_hash_table_lookup( value_in_hash->links, idw2 ) ) {
+    perra( "Repeated entry! %s-%s\n", w1, w2 );    
+  }
+  g_hash_table_insert(value_in_hash->links, idw2, link_count);  
 }
 
 /******************************************************************************/
