@@ -20,8 +20,8 @@ parser = argparse.ArgumentParser(description="""
         Solve a TOEFL problem file in <stdin> by using a CSV
         `thesaurus_file`, looking at `column_name`.
 
-        The input file must have many lines with the following syntax:
-        "word syn0 syn1 syn2 syn3", where only syn0 is actually
+        The <thesaurus_file> must have many lines with the following
+        syntax: "word syn0 syn1 syn2 syn3", where only syn0 is actually
         a valid synonym. This script evaluates the likelihood
         of each proposed synonym.
         """)
