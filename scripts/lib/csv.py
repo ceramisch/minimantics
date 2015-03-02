@@ -20,19 +20,24 @@ def parse_csv(handler, input_file=None, yield_comments=False, yield_header=False
 
     header = None
     handler.begin()
-    for line in input_file:
-        line = line[:-1].decode('utf8', errors='replace')
-        if not line or line.startswith("#"):
-            handler.handle_comment(line)
-            continue
+    for linenum, line in enumerate(input_file):
+        try:
+            line = line[:-1].decode('utf8', errors='replace')
+            if not line or line.startswith("#"):
+                handler.handle_comment(line)
+                continue
 
-        data = line.split()
+            data = line.split()
 
-        if header is None:
-            handler.handle_header(line, data)
-            header = data
-        else:
-            handler.handle_data(line, data, dict(zip(header, data)))
+            if header is None:
+                handler.handle_header(line, data)
+                header = data
+            else:
+                handler.handle_data(line, data, dict(zip(header, data)))
+        except Exception as e:
+            print("ERROR when processing line {}" \
+                    .format(linenum), file=sys.stderr)
+            raise e
     handler.end()
     return handler
 
