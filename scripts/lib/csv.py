@@ -21,7 +21,7 @@ def parse_csv(handler, input_file=None, yield_comments=False, yield_header=False
     header = None
     handler.begin()
     for line in input_file:
-        line = line[:-1]
+        line = line[:-1].decode('utf8', errors='replace')
         if not line or line.startswith("#"):
             handler.handle_comment(line)
             continue
