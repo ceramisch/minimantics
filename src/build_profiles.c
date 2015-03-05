@@ -3,6 +3,7 @@
 #include <math.h>
 #include <glib-2.0/glib.h>
 #include <string.h>
+#include <pthread.h>
 #include "util.h"
 
 #define DEFAULT_NUMBER_THREADS 1
