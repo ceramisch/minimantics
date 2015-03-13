@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <glib-2.0/glib.h>
 #include <string.h>
+#include <pthread.h>
 #include "util.h"
 
 char *score_names[ N_SIM_SCORES ] = { "cosine", "wjaccard", "lin", "l1", "l2", 
