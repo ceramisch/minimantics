@@ -1,6 +1,6 @@
 CC = gcc
 
-CCFLAGS  = -O2 -Wall -ggdb #-I../../conll_lib/src
+CCFLAGS  = -O2 -Wall #-g #-I../../conll_lib/src
 #CCFLAGS = -O6
 CCFLAGS	+= $(shell pkg-config --cflags glib-2.0)
 #CCFLAGS	+= $(shell pkg-config --cflags conll_lib)
@@ -24,7 +24,7 @@ calculate_similarity:  calculate_similarity.c $(OBJ)
 generalize:  generalize.c $(OBJ)
 	$(CC) $(CCFLAGS) -o $@ $^ $(LIBS)	
 	
-%.o : %.c %.h
+%.o : %.c 
 	$(CC) $(CCFLAGS) -c $^ $(LIBS)	
 
 clean:

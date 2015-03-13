@@ -18,15 +18,17 @@ HERE = os.path.dirname(os.path.realpath(__file__))
 
 parser = argparse.ArgumentParser(description="""
         Solve a TOEFL problem file in <stdin> by using a CSV
-        `thesaurus_file`, looking at `column_name`.
+        `thesaurus_file`, looking at `column_name` to see the
+        similarity between `target` and `neighbor` (higher
+        numbers mean "more similar").
 
         The <thesaurus_file> must have many lines with the following
         syntax: "word syn0 syn1 syn2 syn3", where only syn0 is actually
         a valid synonym. This script evaluates the likelihood
         of each proposed synonym.
         """)
-parser.add_argument("-a", "--out-accuracy", action="store_true",
-        help="""Output accuracy of predicting syn0.""")
+parser.add_argument("-a", "--out-all-stats", action="store_true",
+        help="""Output statistics regarding the prediction of syn0.""")
 parser.add_argument("-s", "--out-similarity", action="store_true",
         help="""Output path_similarity for each synK.""")
 parser.add_argument("-d", "--default", default="?",
@@ -42,6 +44,7 @@ class Main(object):
         self.args = args
         self.n_lines = 0
         self.n_correct = 0
+        self.n_empty = 0
 
     def run(self):
         self.thesaurus = csv.parse_csv(
@@ -50,11 +53,12 @@ class Main(object):
         for line_num, line in enumerate(sys.stdin):
             line = line[:-1]  # Strip off '\n'
             self.treat_line(line, line_num)
-        if self.args.out_accuracy:
+        if self.args.out_all_stats:
             print("Accuracy: {:2.2f}%".format(100 * self.n_correct/self.n_lines))
+            print("Empty: {:2.2f}%".format(100 * self.n_empty/self.n_lines))
 
     def treat_line(self, line, line_num):
-        r"""Called for each line "word syn1 syn2 syn3 syn4"."""
+        r"""Called for each line "word syn0 syn1 syn2 syn3"."""
         data = line.split(" ")
         word, syns = data[0], data[1:]
         similarities = [self.thesaurus[(word, s)] for s in syns]
@@ -64,9 +68,10 @@ class Main(object):
                         self.args.default for s in similarities), sep="")
 
         self.n_lines += 1
-        # (We reverse it to penalize sim0 for being as good as another one)
+        # (We penalize sim0 for being as good as another one)
         if all(similarities[0] > s for s in similarities[1:]):
-            self.n_correct += 1  # got syn0
+            self.n_correct += 1  # syn0 was better
+        self.n_empty += (similarities[0] is None)
 
 
 class Thesaurus(csv.CSVHandler):

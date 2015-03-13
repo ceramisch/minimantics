@@ -5,6 +5,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import absolute_import
 
+import sys
+
 
 def parse_csv(handler, input_file=None, yield_comments=False, yield_header=False):
     r"""Iterate through each line from a CSV input file (or stdin).
@@ -15,29 +17,37 @@ def parse_csv(handler, input_file=None, yield_comments=False, yield_header=False
     -- yield_header: If True, yield header as well.
     """
     if input_file is None:
-        import sys
         input_file = sys.stdin
 
     header = None
     handler.begin()
-    for linenum, line in enumerate(input_file):
-        try:
-            line = line[:-1].decode('utf8', errors='replace')
-            if not line or line.startswith("#"):
+    linenum = None
+    try:
+        for linenum, byteline in enumerate(input_file):
+            byteline = byteline[:-1]
+            line = byteline.decode('utf8', errors='replace')
+            if not byteline or byteline.startswith(b"#"):
                 handler.handle_comment(line)
                 continue
 
-            data = line.split()
+            bytedata = byteline.split()
+            data = [d.decode('utf8', errors='replace') for d in bytedata]
 
             if header is None:
                 handler.handle_header(line, data)
                 header = data
             else:
+                if len(header) != len(data):
+                    print("BAD input: expected {} entries, " \
+                            "but got {!r}".format(
+                            len(header), data), file=sys.stderr)
+                    raise Exception("Bad CSV")
                 handler.handle_data(line, data, dict(zip(header, data)))
-        except Exception as e:
-            print("ERROR when processing line {}" \
-                    .format(linenum), file=sys.stderr)
-            raise e
+
+    except Exception as e:
+        print("ERROR when processing line {}" \
+                .format(linenum+1), file=sys.stderr)
+        raise e
     handler.end()
     return handler
 

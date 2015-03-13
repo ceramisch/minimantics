@@ -28,8 +28,8 @@ parser = argparse.ArgumentParser(description="""
         THIS SCRIPT REQUIRES THE INPUT TO BE SORTED ON `target`.""")
 parser.add_argument("-k", "--best-k", type=int, default=float('inf'),
         help="""Output only first K entries for each `target`.""")
-parser.add_argument("pos_tag", type=unicode,
-        help="""The POS-tag for all `target` and `neighbor` in the input.""")
+parser.add_argument("wordnet_pos_tag", type=unicode,
+        help="""The wordnet POS-tag for all `target` and `neighbor` in the input.""")
 
 
 class WnAdder(csv.CSVHandler):
@@ -58,8 +58,8 @@ class WnAdder(csv.CSVHandler):
     def wnpath(self, target, neighbor):
         r"""Return the best path_similarity between
         `target` and `neighbor`."""
-        synsetsT = wn.synsets(target, self.args.pos_tag)
-        synsetsN = wn.synsets(neighbor, self.args.pos_tag)
+        synsetsT = wn.synsets(target, self.args.wordnet_pos_tag)
+        synsetsN = wn.synsets(neighbor, self.args.wordnet_pos_tag)
         if not synsetsT:
             return 0  # XXX no synsets for `target`
         if not synsetsN:
