@@ -62,27 +62,28 @@ class NormalizingPrinter(csv.CSVHandler):
 
     def flush_current_group(self):
         r"""Take average of all elements in self.current_group."""
-        sum_values = [0] * len(self.header_names)
+        sum_squares = [0] * len(self.header_names)
         for data_namedtuple in self.current_group:
             for i, elem in enumerate(data_namedtuple):
                 try:
-                    sum_values[i] += float(elem)
+                    sum_squares[i] += float(elem)**2
                 except ValueError:
                     pass  # Value cannot be converted to float
 
+        denominators = [math.sqrt(s) for s in sum_squares]
         for data_namedtuple in self.current_group:
-            print(*[self.divide(i, value, sum) for (i, (value, sum))
-                    in enumerate(zip(data_namedtuple, sum_values))], sep="\t")
+            print(*[self.divide(i, value, denom) for (i, (value, denom))
+                    in enumerate(zip(data_namedtuple, denominators))], sep="\t")
 
         self.current_group[:] = []
 
 
-    def divide(self, index, stringvalue, sum_value):
-        r"""Return float(stringvalue)/sum_value."""
+    def divide(self, index, stringvalue, denominator):
+        r"""Return float(stringvalue)/denominator."""
         if not self.header_chosen[index]:
             return stringvalue
         try:
-            return float(stringvalue) / sum_value
+            return float(stringvalue) / denominator
         except ValueError:
             return stringvalue
 
