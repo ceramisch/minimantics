@@ -5,6 +5,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import absolute_import
 
+import collections
 import sys
 
 
@@ -19,7 +20,7 @@ def parse_csv(handler, input_file=None, yield_comments=False, yield_header=False
     if input_file is None:
         input_file = sys.stdin
 
-    header = None
+    tupleclass = None
     handler.begin()
     linenum = None
     try:
@@ -31,23 +32,25 @@ def parse_csv(handler, input_file=None, yield_comments=False, yield_header=False
                 continue
 
             bytedata = byteline.split()
-            data = [d.decode('utf8', errors='replace') for d in bytedata]
+            data = tuple(d.decode('utf8', errors='replace') for d in bytedata)
 
-            if header is None:
-                handler.handle_header(line, data)
-                header = data
+            if tupleclass is None:
+                tupleclass = collections.namedtuple(
+                        "DataTuple", data, rename=True)
+                handler.handle_header(line, tupleclass._fields)
             else:
-                if len(header) != len(data):
+                if len(tupleclass._fields) != len(data):
                     print("BAD input: expected {} entries, " \
                             "but got {!r}".format(
-                            len(header), data), file=sys.stderr)
+                            len(tupleclass._fields), data), file=sys.stderr)
                     raise Exception("Bad CSV")
-                handler.handle_data(line, data, dict(zip(header, data)))
+                data_tuple = tupleclass(*data)
+                handler.handle_data(line, data_tuple)
 
     except Exception as e:
         print("ERROR when processing line {}" \
                 .format(linenum+1), file=sys.stderr)
-        raise e
+        raise
     handler.end()
     return handler
 

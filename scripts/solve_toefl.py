@@ -79,9 +79,9 @@ class Thesaurus(csv.CSVHandler):
         self.column_name = column_name
         self.mapping = {}
 
-    def handle_data(self, line, data_list, data_dict):
-        self.mapping[(data_dict["target"], data_dict["neighbor"])] \
-                = float(data_dict[self.column_name])
+    def handle_data(self, line, data_namedtuple):
+        self.mapping[(data_namedtuple.target, data_namedtuple.neighbor)] \
+                = float(getattr(data_namedtuple, self.column_name))
 
     def __getitem__(self, target_and_neighbor):
         return self.mapping.get(target_and_neighbor, None)

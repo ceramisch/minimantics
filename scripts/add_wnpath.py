@@ -42,18 +42,20 @@ class WnAdder(csv.CSVHandler):
         print(line)
 
     def handle_header(self, line, header_list):
+        assert "target" in header_list, header_list
+        assert "neighbor" in header_list, header_list
         print(line.decode('utf8'), "wnpath",  sep="\t")
 
-    def handle_data(self, line, data_list, data_dict):
-        target = data_dict["target"]
-        neighbor = data_dict["neighbor"]
+    def handle_data(self, line, data_namedtuple):
+        target = data_namedtuple.target
+        neighbor = data_namedtuple.neighbor
         if target != self.current_target:
             self.current_target = target
             self.current_target_count = 0
         self.current_target_count += 1
         if self.current_target_count <= self.args.best_k:
-            data_list.append("{0:.10f}".format(self.wnpath(target, neighbor)))
-            print("\t".join(data_list).encode('utf8'))
+            wnpath = "{0:.10f}".format(self.wnpath(target, neighbor))
+            print("\t".join(data_namedtuple).encode('utf8'), wnpath, sep="\t")
 
     def wnpath(self, target, neighbor):
         r"""Return the best path_similarity between

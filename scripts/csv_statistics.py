@@ -46,13 +46,14 @@ class StatsPrinter(csv.CSVHandler):
         assert self.args.column_name in columns, \
                 (columns, self.args.column_name)
 
-    def handle_data(self, line, data_list, data_dict):
-        discriminant = tuple(data_dict[k] for k in self.args.discriminate_by)
+    def handle_data(self, line, data_tuple):
+        discriminant = tuple(getattr(data_tuple, col_name)
+                for col_name in self.args.discriminate_by)
         if discriminant != self.current_discriminant:
             self.print_stats()
             self.current_discriminant = discriminant
             self.stats = statistics.Statistics()
-        self.stats.add(float(data_dict[self.args.column_name]))
+        self.stats.add(float(getattr(data_tuple, self.args.column_name)))
 
     def end(self):
         self.print_stats()
