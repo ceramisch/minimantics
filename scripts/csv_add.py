@@ -172,11 +172,12 @@ class TargetVector(object):
 
     def _header2floats(self, header_name):
         r"""Given a header name, yields floats for each context."""
-        for cvec in self._ctx2vec.itervalues():
-            try:
-                yield cvec, float(cvec[header_name])
-            except (TypeError, ValueError):
-                pass
+        for c, cvec in self._ctx2vec.iteritems():
+            if not c.startswith("id_"):
+                try:
+                    yield cvec, float(cvec[header_name])
+                except (TypeError, ValueError):
+                    pass
 
 
 ############################################################
