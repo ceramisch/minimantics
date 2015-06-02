@@ -124,7 +124,9 @@ void read_and_store_profile_line( FILE *input, int assoc_index ) {
   }
   entry[ i ] = '\0';      
   r_read += sscanf( entry, "%lf", &score ); // convert to double
-  while( getc(input) != '\n' && !feof(input) ){ /*read-ignore rest of line*/ }
+  while( getc(input) != '\n' && !feof(input) ){ 
+    /*read-ignore rest of line*/ 
+  }
   // Line was correctly read, score not too low, context not to be filtered out
   // target to be kept as target or as neighbor => store it!
   if( r_read == 5 ) {

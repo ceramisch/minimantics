@@ -49,7 +49,7 @@ void read_input_file( char *filename ) {
            NULL, destroy_word_count );
   symbols_dict = g_hash_table_new_full( &g_str_hash, &g_str_equal, 
            free, free );          
-  inv_symbols_dict = g_hash_table_new_full( &g_str_hash, &g_str_equal, 
+  inv_symbols_dict = g_hash_table_new_full( &g_int_hash, &g_int_equal, 
            NULL, NULL );              
   // Reads potentially large strings from file
   target_buff = malloc( 1000 * sizeof( char ) );
@@ -115,7 +115,7 @@ void calculate_and_print_am( int *w1, int idw1, int *w2, int idw2,
                               PRODLOG( cnw1w2 , cnw1w2  / enw1w2  ) +
                               PRODLOG( cnw1nw2, cnw1nw2 / enw1nw2 ) );
   char *w1s = g_hash_table_lookup( inv_symbols_dict, w1 );
-  char *w2s = g_hash_table_lookup( inv_symbols_dict, w2 );  
+  char *w2s = g_hash_table_lookup( inv_symbols_dict, w2 );
   printf( "%s\t%d\t%s\t%d\t%.2lf\t%.2lf\t%.2lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
           w1s, idw1, w2s, idw2, cw1w2, cw1, cw2, am_cp, am_pmi, am_npmi, am_lmi, am_tscore, 
           am_zscore, am_dice , am_chisquare, am_loglike, t_entropy, c_entropy );
@@ -152,13 +152,13 @@ void update_count() {
 void calculate_ams_all_serial( word_count *casted_t, gpointer key_t ) {
   double count_t_c;
   gpointer key_c, value_t_c;
-  word_count *casted_c;  
+  word_count *casted_c;
   GHashTableIter iter_c;  
   g_hash_table_iter_init( &iter_c, casted_t->links );
   casted_t->entropy = calculate_entropy(casted_t->count, casted_t->links);
   while( g_hash_table_iter_next( &iter_c, &key_c, &value_t_c ) ){
     casted_c = g_hash_table_lookup( c_dict, key_c );
-    count_t_c = *((double *)value_t_c);             
+    count_t_c = *((double *)value_t_c);
     calculate_and_print_am( (int *)key_t, casted_t->id, (int *)key_c, 
                       casted_c->id, count_t_c, casted_t->count, casted_c->count, 
                       casted_t->entropy, casted_c->entropy );

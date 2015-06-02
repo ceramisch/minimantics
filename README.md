@@ -2,6 +2,8 @@ Minimalist distributional semantics
 by Carlos Ramisch
 Sept 11, 2014
 
+IMPORTANT: build_profiles.c had a serious and mysterious bug, corrected on Jun 1 2015, please update ASAP!
+
 Requires NLTK wordnet for evaluation
 Requires GNU C compiler with pthreads support (standard in Linux)
 

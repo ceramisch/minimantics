@@ -31,12 +31,8 @@ for file in ${INPUT}.targets ${INPUT}.contexts; do
   cat $file |  awk '{ if( $1 > thresh && length($2) > 1) print $2; }' thresh=${THRESH1} > $file.filter${THRESH1}
 done
 
-
-if [ 1 -eq 0 ]; then # REMOVEME
 echo "Sorting raw triples..."
 ${SORTCMD} ${INPUT} > ${INPUT}.s
-
-fi #REMOVEME
 
 echo "Joining"
 # First select only triples containing verbs from the filtered list
