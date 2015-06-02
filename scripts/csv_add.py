@@ -157,9 +157,13 @@ class TargetVector(object):
     def _floatify(self, value):
         r"""Return value as float, if possible."""
         try:
-            return float(value)
+            ret = float(value)
         except (TypeError, ValueError):
             return value
+        else:
+            if int(ret) == ret:
+                return int(ret)
+            return ret
 
     def do_normalize(self, list_header_names):
         r"""Normalize entries is `self`."""
@@ -172,8 +176,8 @@ class TargetVector(object):
 
     def _header2floats(self, header_name):
         r"""Given a header name, yields floats for each context."""
-        for c, cvec in self._ctx2vec.iteritems():
-            if not c.startswith("id_"):
+        if not header_name.startswith("id_"):
+            for c, cvec in self._ctx2vec.iteritems():
                 try:
                     yield cvec, float(cvec[header_name])
                 except (TypeError, ValueError):
