@@ -196,7 +196,7 @@ def word2vec_parser(csv_handler, input_file):
     csv_handler.handle_header(None, header)
 
     for line in input_file:
-        line = line[:-1]
+        line = line.strip()
         target, line = line.split(" ", 1)
         for context, value in enumerate(line.split(" ")):
             csv_handler.handle_data(None, W2VNamedTuple(

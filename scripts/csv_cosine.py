@@ -86,13 +86,16 @@ class DataCollector(csv.CSVHandler):
         print(*["target_a", "target_b", "cosine"], sep="\t")
         column_index = self.list_header_names.index(column_name)
         for target_pair in target_pairs:
-            for target in target_pair:
-                if target not in self.data:
-                    print("WARNING: missing target", target,
-                            "for cosine ", target_pairs, file=sys.stderr)
-                    continue
-            cosine = self._calc_cosine(target_pair, column_index)
-            print(*(list(target_pair) + [cosine]), sep="\t")
+            self._print_pair(target_pair, column_index)
+
+    def _print_pair(self, target_pair, column_index):
+        for target in target_pair:
+            if target not in self.data:
+                print("WARNING: missing target", target,
+                        "for cosine ", target_pair, file=sys.stderr)
+                return
+        cosine = self._calc_cosine(target_pair, column_index)
+        print(*(list(target_pair) + [cosine]), sep="\t")
 
 
     def _list_contexts(self, targets):
