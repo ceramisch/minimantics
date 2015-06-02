@@ -29,9 +29,13 @@ parser = argparse.ArgumentParser(description="""
         Adds up the columns in the second file and output the result.
 
         Entries are discriminated by the `target` and `context` columns.""")
+parser.add_argument("--normalize-before", action='store_true',
+        help="""Normalize input vectors before adding them up""")
+parser.add_argument("--normalize-after", action='store_true',
+        help="""Normalize input vectors after adding them up""")
 parser.add_argument("--input-format", choices=("CSV", "word2vec"), default="CSV",
         help="""Choose the file format for input_file (default: CSV).""")
-parser.add_argument("target_triples", type=argparse.FileType("r"),
+parser.add_argument("target_addition_triples", type=argparse.FileType("r"),
         help="""The pairs target_a/target_b/target_result.""")
 parser.add_argument("input_file", type=argparse.FileType("r"),
         help="""File whose elements should be added.""")
@@ -54,8 +58,9 @@ class TriplesCollector(csv.CSVHandler):
 ############################################################
 
 class DataCollector(csv.CSVHandler):
-    def __init__(self):
-        self.data = collections.OrderedDict()
+    def __init__(self, args):
+        self.args = args
+        self.data = collections.OrderedDict()  # Dict[TargetVector]
         self.add_operation = lambda x, y: x+y
         self.list_header_names = []
         self.set_header_names = set()
@@ -75,11 +80,8 @@ class DataCollector(csv.CSVHandler):
         name/order). They are all required to have `target` and `context`, though.
         """
         t, c = data_namedtuple.target, data_namedtuple.context
-        data_t = self.data.setdefault(t, collections.OrderedDict())
-        if c in data_t:
-            print("WARNING: duplicate target-context pair:",
-                    t, c, file=sys.stderr)
-        data_t[c] = data_namedtuple
+        data_t = self.data.setdefault(t, TargetVector(t))
+        data_t.add_entry(c, data_namedtuple)
 
 
     def print_merged(self, triples):
@@ -91,47 +93,88 @@ class DataCollector(csv.CSVHandler):
                 if target != "@NOTHING" and target not in self.data:
                     print("WARNING: missing target", target,
                             "for", triple.target_result, file=sys.stderr)
-            targets = [t for t in targets if t in self.data]
-            for context in self._list_contexts(targets):
-                print(*self._merged_columns(targets, triple.target_result, context), sep="\t")
+            targets = [self.data[t] for t in targets if t in self.data]
+            if self.args.normalize_before:
+                for t in targets:
+                    t.do_normalize(self.list_header_names)
+            t_result = TargetVector.sum(triple.target_result, targets)
+            if self.args.normalize_after:
+                t_result.do_normalize(self.list_header_names)
+            t_result.print_csv(self.list_header_names)
 
 
-    def _list_contexts(self, targets):
-        seen_ctx = set()
-        for target in targets:
-            for context in self.data[target]:
-                if context not in seen_ctx:
-                    yield context
-                    seen_ctx.add(context)
+class TargetVector(object):
+    r"""Represents a sparse vector."""
+    def __init__(self, target_name):
+        self.target_name = target_name
+        self._ctx2vec = collections.OrderedDict()  # Dict[context, data_dict]
 
+    def add_entry(self, context_name, data_namedtuple):
+        r"""Add (self, context_name) -> data_namedtuple mapping."""
+        if context_name in self._ctx2vec:
+            print("WARNING: duplicate target-context pair:",
+                    self.target_name, context_name, file=sys.stderr)
+        self._add_into(context_name, data_namedtuple._asdict())
 
-    def _merged_columns(self, targets, target_result, context):
-        r"""Merge all targets for given context and yield columns."""
-        for header_name in self.list_header_names:
-            if header_name == "target":
-                yield target_result
-                continue
-            cell_vectors = [self.data[target][context] for target
-                    in targets if (context in self.data[target])]
-            cell_values = [getattr(cv, header_name) for cv in cell_vectors]
-            assert cell_values, (targets, target_result, context)
-
-            if len(cell_values) == 1:
-                yield cell_values[0]
-            elif header_name == "context" or header_name.startswith("id_"):
-                if len(set(cell_values)) != 1:
-                    print("WARNING: bad entry", header_name, "when adding:",
-                            target_result, file=sys.stderr)
-                yield cell_values[0]
+    def _add_into(self, context_name, data_dict):
+        r"""Increment value for given context_name."""
+        vec = self._ctx2vec.setdefault(context_name,
+                {"target": self.target_name})
+        for col_key, col_value in data_dict.iteritems():
+            if col_key == "target": continue
+            col_value = self._floatify(col_value)
+            if col_key not in vec:
+                vec[col_key] = col_value
             else:
-                yield sum(self._floatify(cell_values))
+                if col_key == "context" or col_key.startswith("id_"):
+                    if col_value != vec[col_key]:
+                        print("WARNING: incompatible entries", col_key,
+                                "for context", context_name, "when adding up",
+                                self.target_name, file=sys.stderr)
+                else:
+                    vec[col_key] += col_value
 
+    @staticmethod
+    def sum(new_target_name, iterable):
+        r"""Add up instances of TargetVector."""
+        ret = TargetVector(new_target_name)
+        for tvector in iterable:
+            for context, data_dict in tvector._ctx2vec.iteritems():
+                ret._add_into(context, data_dict)
+        return ret
 
-    def _floatify(self, values):
-        r"""Return values as floats, skipping bad values."""
-        for v in values:
+    def print_csv(self, list_header_names):
+        r"""Merge all targets for given context. Yield columns."""
+        for data_dict in self._ctx2vec.itervalues():
+            print("\t".join(unicode(x) for x in
+                self._get_cols(data_dict, list_header_names)))
+
+    def _get_cols(self, data_dict, list_header_names):
+        r"""Yield all columns for this line."""
+        for header_name in list_header_names:
+            yield data_dict.get(header_name, "?")
+
+    def _floatify(self, value):
+        r"""Return value as float, if possible."""
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return value
+
+    def do_normalize(self, list_header_names):
+        r"""Normalize entries is `self`."""
+        for header_name in list_header_names:
+            sqsumsq = math.sqrt(sum(f**2 for (c, f)
+                    in self._header2floats(header_name)))
+            if sqsumsq != 0:
+                for cvec, f in self._header2floats(header_name):
+                    cvec[header_name] = f/sqsumsq
+
+    def _header2floats(self, header_name):
+        r"""Given a header name, yields floats for each context."""
+        for cvec in self._ctx2vec.itervalues():
             try:
-                yield float(v)
+                yield cvec, float(cvec[header_name])
             except (TypeError, ValueError):
                 pass
 
@@ -160,13 +203,13 @@ def word2vec_parser(csv_handler, input_file):
 def main():
     args = parser.parse_args()
     triples = csv.parse_csv(TriplesCollector(),
-            input_file=args.target_triples).triples
+            input_file=args.target_addition_triples).triples
 
     data_parser = csv.parse_csv
     if args.input_format == "word2vec":
         data_parser = word2vec_parser
 
-    collector = data_parser(DataCollector(),
+    collector = data_parser(DataCollector(args),
             input_file=args.input_file)
     collector.print_merged(triples)
 
