@@ -58,8 +58,9 @@ class TriplesCollector(csv.CSVHandler):
 ############################################################
 
 class DataCollector(csv.CSVHandler):
-    def __init__(self, args):
+    def __init__(self, args, addition_triples):
         self.args = args
+        self.addition_triples = addition_triples
         self.data = collections.OrderedDict()  # Dict[TargetVector]
         self.add_operation = lambda x, y: x+y
         self.list_header_names = []
@@ -80,14 +81,17 @@ class DataCollector(csv.CSVHandler):
         name/order). They are all required to have `target` and `context`, though.
         """
         t, c = data_namedtuple.target, data_namedtuple.context
-        data_t = self.data.setdefault(t, TargetVector(t))
-        data_t.add_entry(c, data_namedtuple)
+        # We only keep in memory the stuff we will use, otherwise we risk
+        # running out of memory (true story; has happened before...)
+        if any(t == a or t == b  for (a, b, res) in self.addition_triples):
+            data_t = self.data.setdefault(t, TargetVector(t))
+            data_t.add_entry(c, data_namedtuple)
 
 
-    def print_merged(self, triples):
+    def print_merged(self):
         r"""Merge `target_a` and `target_b` and print them."""
         print(*self.list_header_names, sep="\t")
-        for triple in triples:
+        for triple in self.addition_triples:
             targets = [triple.target_a, triple.target_b]
             for target in targets:
                 if target != "@NOTHING" and target not in self.data:
@@ -214,9 +218,9 @@ def main():
     if args.input_format == "word2vec":
         data_parser = word2vec_parser
 
-    collector = data_parser(DataCollector(args),
+    collector = data_parser(DataCollector(args, triples),
             input_file=args.input_file)
-    collector.print_merged(triples)
+    collector.print_merged()
 
 
 #####################################################
