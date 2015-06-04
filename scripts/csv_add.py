@@ -126,17 +126,22 @@ class TargetVector(object):
                 {"target": self.target_name})
         for col_key, col_value in data_dict.iteritems():
             if col_key == "target": continue
-            col_value = self._floatify(col_value)
             if col_key not in vec:
                 vec[col_key] = col_value
             else:
-                if col_key == "context" or col_key.startswith("id_"):
-                    if col_value != vec[col_key]:
+                a, b = vec[col_key], col_value
+                if self.is_constant_field(col_key):
+                    if a != b:
                         print("WARNING: incompatible entries", col_key,
                                 "for context", context_name, "when adding up",
                                 self.target_name, file=sys.stderr)
                 else:
-                    vec[col_key] += col_value
+                    vec[col_key] = a + b
+
+    @staticmethod
+    def is_constant_field(header_name):
+        r"""Return True iff values in this field should all be the same."""
+        return header_name == "context" or header_name.startswith("id_")
 
     @staticmethod
     def sum(new_target_name, iterable):
@@ -180,7 +185,7 @@ class TargetVector(object):
 
     def _header2floats(self, header_name):
         r"""Given a header name, yields floats for each context."""
-        if not header_name.startswith("id_"):
+        if not self.is_constant_field(header_name):
             for c, cvec in self._ctx2vec.iteritems():
                 try:
                     yield cvec, float(cvec[header_name])
