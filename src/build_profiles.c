@@ -113,12 +113,13 @@ void calculate_and_print_am( int *w1, int idw1, int *w2, int idw2,
          am_loglike = 2.0 * ( PRODLOG( cw1w2  , cw1w2   / ew1w2   ) +
                               PRODLOG( cw1nw2 , cw1nw2  / ew1nw2  ) +
                               PRODLOG( cnw1w2 , cnw1w2  / enw1w2  ) +
-                              PRODLOG( cnw1nw2, cnw1nw2 / enw1nw2 ) );
+                              PRODLOG( cnw1nw2, cnw1nw2 / enw1nw2 ) ),
+         am_affinity = 0.5 * ( cw1w2 / cw1 + cw1w2 / cw2 ) ;
   char *w1s = g_hash_table_lookup( inv_symbols_dict, w1 );
   char *w2s = g_hash_table_lookup( inv_symbols_dict, w2 );
-  printf( "%s\t%d\t%s\t%d\t%.2lf\t%.2lf\t%.2lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
+  printf( "%s\t%d\t%s\t%d\t%.2lf\t%.2lf\t%.2lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", 
           w1s, idw1, w2s, idw2, cw1w2, cw1, cw2, am_cp, am_pmi, am_npmi, am_lmi, am_tscore, 
-          am_zscore, am_dice , am_chisquare, am_loglike, t_entropy, c_entropy );
+          am_zscore, am_dice , am_chisquare, am_loglike, am_affinity, t_entropy, c_entropy );
 }
 
 /******************************************************************************/
@@ -197,7 +198,7 @@ int main( int argc, char *argv[] ) {
   perr( "Calculating association scores...\n" );
   printf( "target\tid_target\tcontext\tid_context\tf_tc\tf_t\tf_c\t" );
   printf( "cond_prob\tpmi\tnpmi\tlmi\ttscore\tzscore\tdice\tchisquare\t" );
-  printf( "loglike\tentropy_target\tentropy_context\n" );
+  printf( "loglike\taffinity\tentropy_target\tentropy_context\n" );
   // First calculate all entropies for contexts
   g_hash_table_iter_init( &iter_c, c_dict );
   while( g_hash_table_iter_next( &iter_c, &key_c, &value_t_c ) ){
