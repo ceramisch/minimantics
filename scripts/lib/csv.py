@@ -67,7 +67,7 @@ class CSVHandler(object):
         r"""Called for the header."""
         pass  # Default: just be quiet
 
-    def handle_data(self, line, data_list, data_dict):
+    def handle_data(self, line, data_list):
         r"""Called once for each line of data."""
         raise NotImplementedError
 

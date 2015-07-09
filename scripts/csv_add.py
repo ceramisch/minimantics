@@ -131,12 +131,19 @@ class TargetVector(object):
             else:
                 a, b = vec[col_key], col_value
                 if self.is_constant_field(col_key):
-                    if a != b:
+                    if a != b and col_key != "id_target":
                         print("WARNING: incompatible entries", col_key,
                                 "for context", context_name, "when adding up",
-                                self.target_name, file=sys.stderr)
+                                self.target_name, "({} vs {})".format(a, b),
+                                file=sys.stderr)
                 else:
-                    vec[col_key] = a + b
+                    try :
+                        vec[col_key] = a + b
+                    except Exception :
+                        print("WARNING: incompatible entries", col_key,
+                                "for context", context_name, "when adding up",
+                                self.target_name, "({} vs {})".format(a, b),
+                                file=sys.stderr)
 
     @staticmethod
     def is_constant_field(header_name):
