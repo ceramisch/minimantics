@@ -12,7 +12,6 @@ import math
 import os
 import sys
 
-from nltk.corpus import wordnet as wn
 from lib import csv
 
 FILE_ENC = "UTF-8"
