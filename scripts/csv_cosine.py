@@ -130,6 +130,9 @@ class DataCollector(csv.CSVHandler):
 ############################################################
 
 def main():
+    sys.stdout = codecs.getwriter(FILE_ENC)(sys.stdout)
+    sys.stderr = codecs.getwriter(FILE_ENC)(sys.stderr)
+
     args = parser.parse_args()
     target_pairs = csv.parse_csv(TargetPairCollector(),
             input_file=args.target_pairs).pairs

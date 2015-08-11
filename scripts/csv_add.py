@@ -212,7 +212,7 @@ def word2vec_parser(csv_handler, input_file):
 
     for line in input_file:
         line = line.strip()
-        target, line = line.split(" ", 1)
+        target, line = line.decode('utf8').split(" ", 1)
         for context, value in enumerate(line.split(" ")):
             csv_handler.handle_data(None, W2VNamedTuple(
                 target, "c{}".format(context), value))
@@ -221,6 +221,9 @@ def word2vec_parser(csv_handler, input_file):
 ############################################################
 
 def main():
+    sys.stdout = codecs.getwriter(FILE_ENC)(sys.stdout)
+    sys.stderr = codecs.getwriter(FILE_ENC)(sys.stderr)
+
     args = parser.parse_args()
     triples = csv.parse_csv(TriplesCollector(),
             input_file=args.target_addition_triples).triples

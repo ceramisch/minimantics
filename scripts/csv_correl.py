@@ -81,13 +81,14 @@ def calc_correlation( args, columns_f1, columns_f2 ) :
     for corr_col1, corr_col2 in pairs :
         vec1 = []
         vec2 = []
+        avg = sum(columns_f2[corr_col2].values())/len(columns_f2[corr_col2].values())
         for key1 in columns_f1[corr_col1].keys() :
             if key1 not in columns_f2[corr_col2].keys() :
                 warn_once("WARNING: {} not found in file 2 ({}). " \
-                          "Replaced by 0.".format(key1,args.file1.name))
+                          "Replaced by {}.".format(key1,args.file1.name,avg))
             else :
                 vec1.append(columns_f1[corr_col1][key1])
-                vec2.append(columns_f2[corr_col2].get(key1,0))
+                vec2.append(columns_f2[corr_col2].get(key1,avg))
         print("\n> Correlations btw columns '{}' (file1) and '{}'"\
               " (file2)".format(corr_col1, corr_col2))
         pearson = scipy.stats.pearsonr(vec1, vec2)
