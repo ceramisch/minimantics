@@ -12,6 +12,9 @@ import collections
 import sys
 from lib import csv
 
+# file1 -> goldstandard
+# file2 -> predictions
+
 parser = argparse.ArgumentParser(description="""
         Calculates several correlation scores between columns of two CSV files.
         """)
