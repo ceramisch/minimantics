@@ -1,19 +1,12 @@
-*.class
-*.log
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
-# sbt specific
-.cache/
-.history/
-.lib/
-dist/*
-target/
-lib_managed/
-src_managed/
-project/boot/
-project/plugins/project/
+# C objects
+*.o
+src/build_profiles
+src/calculate_similarity
 
-# Scala-IDE specific
-.scala_dependencies
-.worksheet
-# Intellij IDEA
+# PyCharm folder
 .idea
