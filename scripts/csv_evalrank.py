@@ -52,7 +52,7 @@ parser.add_argument("--pred-value-columns", nargs="*", default=None,
         (default: second column).""")
 
 parser.add_argument("--gold-threshold", metavar="T", type=float,
-        help="""Value above which (>=) the value should be interpreted as
+        help="""Threshold above which (>=) the value should be interpreted as
         true/positive label. Values below this are considered
         false/negative.""")
 parser.add_argument("--inverted-scales", action="store_true",
@@ -88,7 +88,7 @@ class NumValuesParser(csv.CSVHandler):
         if self.colnames is None : # by default, second column
             self.colnames = [ header_names[1] ]
         for col in self.colnames + [ self.id_col ] :
-            assert col in header_names, header_names
+            assert col in header_names, (col, header_names)
             self.result_columns[col] = {} #collections.OrderedDict()
 
     def handle_data(self, line, data_namedtuple):
