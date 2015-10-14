@@ -31,8 +31,9 @@ parser = argparse.ArgumentParser(
 
         These measures require --gold-threshold:
         * BestF1: max(F1 of top N values for all N)  [0..+1]
-        * AvgPrec: avg(prec of top k values if isrelevant(k'th)) [0..+1]
+        * AvgPrec: avg(prec of top k values if isrelevant(k'th))  [0..+1]
         * Prec@X: precision using top X values  [0..+1]
+        * NDCG: normalized(sum(isrelevant(k'th) / log(k)))  [0..+1]
         """))
 parser.add_argument("--gold-id-column", default=None, 
         metavar=("<colname>"), type=unicode,
