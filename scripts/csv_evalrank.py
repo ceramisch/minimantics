@@ -24,6 +24,7 @@ from __future__ import absolute_import
 
 import argparse
 import collections
+import codecs
 import itertools
 import math
 import os
@@ -51,6 +52,15 @@ parser = argparse.ArgumentParser(
         * AvgPrec: avg(prec of top k values if isrelevant(k'th))  [0..+1]
         * Prec@X: precision using top X values  [0..+1]
         * NDCG: normalized(sum(isrelevant(k'th) / log(k)))  [0..+1]
+
+        This information is also presented:
+        * Wilcoxon: low pvalues iff files have different distributions
+        * NPreds: total number of predictions
+        * PredTies: values that have tied (and number of ties)
+
+        TO_DOCUMENT:
+        * Best[Gold->Pred]: good rank predictions (smallest differences)
+        * Worst[Gold->Pred]: bad rank predictions (greatest differences)
         """))
 parser.add_argument("--gold-id-column", default=None, 
         metavar=("<colname>"), type=unicode,
@@ -74,12 +84,23 @@ parser.add_argument("--gold-threshold", metavar="T", type=float,
         true/positive label. Values below this are considered
         false/negative.""")
 parser.add_argument("--inverted-scales", action="store_true",
-        help="""Indicates that gold-standard and prediction measures
-        use inverted scales (e.g. one measures "compositionality"
-        and the other measures "non-compositionality".""")
+        help="""Indicates that the prediction measures
+        use inverted scales when compared to the gold-standard,
+        and must be implicitly re-inverted.
+        If the gold-standard itself measures the opposite of
+        what you want (e.g. you want to compare predictions of
+        "compositionality" but the gold standard provides
+        "non-compositionality" scores),
+        you MUST pre-process the gold-standard before running this script.
+        """)
 parser.add_argument("--precision-at", metavar="N", type=int, default=10,
         help="""Calculate precision at top N pred_file elements with
         highest value (default: 10 elements).""")
+
+parser.add_argument("--extremities", metavar="N", type=int, default=5,
+        help="""Calculate best/worst rank extremities (default: 5 points).""")
+parser.add_argument("--extremity-gold-info-columns", nargs="*", type=unicode, default=[],
+        help="""Column names of extra gold-standard info to present per extremity point.""")
 
 parser.add_argument("--debug", action="store_true",
         help="""Print extra debug info.""")
@@ -91,14 +112,18 @@ parser.add_argument("pred_file",  type=argparse.FileType('r'),
         help="""Filename of second CSV file (predicted values).""")
 
 
+sys.stdin = codecs.getreader("utf8")(sys.stdin)
+sys.stdout = codecs.getwriter("utf8")(sys.stdout)
+
+
 #####################################################
 
 class NumValuesParser(csv.CSVHandler):
     def __init__(self, id_col, colnames, inverted_scales=False):
-        self.id_col = id_col
-        self.colnames = colnames
-        self.inverted_scales = inverted_scales
-        self.result_columns = {}
+        self.id_col = id_col  # type: int
+        self.colnames = colnames  # type: list[str]
+        self.inverted_scales = inverted_scales  # type: bool
+        self.result_columns = {}  # type: dict[str, dict[str, float]]
 
     def handle_header(self, line, header_names):
         if self.id_col is None : # by default, first column
@@ -111,9 +136,15 @@ class NumValuesParser(csv.CSVHandler):
 
     def handle_data(self, line, data_namedtuple):
         key = getattr(data_namedtuple, self.id_col)
-        for colname in self.colnames :
-            value = float(getattr(data_namedtuple, colname))
-            if self.inverted_scales: value = -value
+        for colname, value in data_namedtuple._asdict().iteritems():
+            try:
+                value = float(value)
+            except ValueError:
+                pass  # keep it as string
+            else:
+                if self.inverted_scales:
+                    value = -value
+            self.result_columns.setdefault(colname, {})
             self.result_columns[colname][key] = value
 
     def end(self):
@@ -121,6 +152,9 @@ class NumValuesParser(csv.CSVHandler):
 
 
 #####################################################
+
+def warn(message, **kwargs):
+    print("WARNING:", message.format(**kwargs), file=sys.stderr)
 
 warnings = set()
 def warn_once(message, **kwargs):
@@ -135,8 +169,8 @@ def warn_once(message, **kwargs):
 class Main(object):
     def __init__(self, args, parser_gold, parser_pred):
         self.args = args
-        self.parser_gold = parser_gold
-        self.parser_pred = parser_pred
+        self.parser_gold = parser_gold  # type: NumValuesParser
+        self.parser_pred = parser_pred  # type: NumValuesParser
         self.columns_gold = parser_gold.result_columns
         self.columns_pred = parser_pred.result_columns
 
@@ -154,6 +188,8 @@ class Main(object):
                         "`{filename}`; will use 0.0", key=key_pred,
                             filename=os.path.basename(self.args.gold_file.name))
 
+        print("## Gold: `{}`".format(self.args.gold_file.name))
+        print("## Pred: `{}`".format(self.args.pred_file.name))
         for col_gold, col_pred in itertools.product(
                 self.parser_gold.colnames, self.parser_pred.colnames):
             print("\n==> Scores between columns `{}` (gold) and `{}`"\
@@ -181,6 +217,62 @@ class Main(object):
                 vec_pred.append(value_pred)
                 vec_gold.append(self.columns_gold[col_gold].get(key_pred, 0.0))
             self.calc_print_precision(vec_gold, vec_pred)
+
+            ############################################################
+
+            keys = list(set(self.columns_gold[col_gold]) | set(self.columns_pred[col_pred]))
+            vec_gold = [self.columns_gold[col_gold].get(k, 0.0) for k in keys]
+            vec_pred = [self.columns_pred[col_pred].get(k, 0.0) for k in keys]
+            w, pvalue = scipy.stats.wilcoxon(vec_gold, vec_pred)
+            print("Wilcoxon: W={}; pvalue={:.5g}".format(w, pvalue))
+
+            ############################################################
+
+            print("NPreds:", len(self.columns_pred[col_pred]))
+            self.print_ties("PredTies", self.columns_pred[col_pred])
+
+            if self.args.extremities != 0:
+                rank_gold = self.rank(self.columns_gold[col_gold])
+                rank_pred = self.rank(self.columns_pred[col_pred])
+                pairing = [(k, rank_gold[k], rank_pred[k]) \
+                        for k in self.columns_pred[col_pred] if k in rank_gold]
+                pairing.sort(key=lambda (key, rank_a, rank_b): rank_a)
+                self.print_diffs("LowGold[Gold->Pred]", pairing[:self.args.extremities])
+                self.print_diffs("HighGold[Gold->Pred]", reversed(pairing[-self.args.extremities:]))
+                pairing.sort(key=lambda (key, rank_a, rank_b): rank_b)
+                self.print_diffs("LowPred[Gold->Pred]", pairing[:self.args.extremities])
+                self.print_diffs("HighPred[Gold->Pred]", reversed(pairing[-self.args.extremities:]))
+                pairing.sort(key=lambda (key, rank_a, rank_b): abs(rank_a-rank_b))
+                self.print_diffs("BestDiff[Gold->Pred]", pairing[:self.args.extremities])
+                self.print_diffs("WorstDiff[Gold->Pred]", reversed(pairing[-self.args.extremities:]))
+
+
+    def rank(self, key2score):
+        r"""@type key2score: dict[str, float]
+        @rtype: dict[str, int]
+        @return: a dict {context: rank_position}
+        """
+        key_rank_pairs = sorted(key2score.iteritems(), key=lambda (key, score): score)
+        return {key: rank for (rank, (key, score)) in enumerate(key_rank_pairs, 1)}
+
+    def print_diffs(self, name, pairing):
+        r"""@type pairing: list[(str, int, int)]."""
+        diffs = " ".join("{key}[{gold}->{pred}]{ginfo}".format(
+                key=key, gold=rank_a, pred=rank_b, ginfo=self.extra_ginfo(key))
+                for (key, rank_a, rank_b) in pairing)
+        print("{name}{ginfo}: {diffs}".format(name=name, diffs=diffs,
+            ginfo="".join("[{}]".format(col) for col in self.args.extremity_gold_info_columns)))
+
+    def extra_ginfo(self, key):
+        return "".join("[{}]".format(self.columns_gold[col][key]) \
+                for col in self.args.extremity_gold_info_columns)
+
+
+    def print_ties(self, name, key2score):
+        count = collections.Counter(key2score.itervalues())
+        ties = " ".join("{}(x{})".format(val, n) \
+                for (val, n) in count.most_common() if n > 1)
+        print("{name}: {ties}".format(name=name, ties=ties or "NoTies"))
 
 
     def print_correl(self, name, correl_pair):

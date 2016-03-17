@@ -48,7 +48,7 @@ def parse_csv(handler, input_file=None, yield_comments=False, yield_header=False
                 handler.handle_comment(line)
                 continue
 
-            bytedata = byteline.split()
+            bytedata = byteline.split(b"\t")
             data = tuple(d.decode('utf8', errors='replace') for d in bytedata)
 
             if tupleclass is None:
