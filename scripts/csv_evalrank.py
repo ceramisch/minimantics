@@ -114,6 +114,7 @@ parser.add_argument("pred_file",  type=argparse.FileType('r'),
 
 sys.stdin = codecs.getreader("utf8")(sys.stdin)
 sys.stdout = codecs.getwriter("utf8")(sys.stdout)
+sys.stderr = codecs.getwriter("utf8")(sys.stderr)
 
 
 #####################################################
