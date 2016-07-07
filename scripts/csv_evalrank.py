@@ -176,18 +176,7 @@ class Main(object):
         self.columns_pred = parser_pred.result_columns
 
     def run(self):
-        sample_col_gold = self.parser_gold.colnames[0]
-        sample_col_pred = self.parser_pred.colnames[0]
-        for key_gold in self.columns_gold[sample_col_gold].iterkeys():
-            if key_gold not in self.columns_pred[sample_col_pred]:
-                warn_once("gold key `{key}` not found in prediction file " \
-                        "`{filename}`; will use avg(predictions)", key=key_gold,
-                            filename=os.path.basename(self.args.pred_file.name))
-        for key_pred in self.columns_pred[sample_col_pred].iterkeys():
-            if key_pred not in self.columns_gold[sample_col_gold]:
-                warn_once("pred key `{key}` not found in gold-standard file " \
-                        "`{filename}`; will use 0.0", key=key_pred,
-                            filename=os.path.basename(self.args.gold_file.name))
+        self.check_missing()
 
         print("## Gold: `{}`".format(self.args.gold_file.name))
         print("## Pred: `{}`".format(self.args.pred_file.name))
@@ -216,7 +205,7 @@ class Main(object):
                     key=lambda item: item[1], reverse=True)  # descending order
             for key_pred, value_pred in ordered_gold_items:
                 vec_pred.append(value_pred)
-                vec_gold.append(self.columns_gold[col_gold].get(key_pred, 0.0))
+                vec_gold.append(self.columns_gold[col_gold][key_pred])
             self.calc_print_precision(vec_gold, vec_pred)
 
             ############################################################
@@ -294,20 +283,13 @@ class Main(object):
         total_positives = sum(1 for value in vec_gold \
                 if value >= self.args.gold_threshold)
 
-        self.precs, self.f1s = [float('-inf')], [float('-inf')]
-        n_true_positives = 0
-        # (All predictions are assumed to be positive)
-        for n_pred_positives, (value_gold, value_pred) \
-                in enumerate(zip(vec_gold, vec_pred), 1):
-            if value_gold >= self.args.gold_threshold:
-                n_true_positives += 1
-            precision = n_true_positives / n_pred_positives
-            recall = n_true_positives / total_positives
-            self.precs.append(precision)
-            if precision == 0 or recall == 0:
-                self.f1s.append(float("-inf"))
-            else:
-                self.f1s.append(2 / ((1/precision) + (1/recall)))
+        if total_positives == 0:
+            warn_once("Bug in gold-threshold (too high, got no positive predictions)")
+            print("Gold-threshold-too-high")
+            return
+
+        self.precs, self.f1s = self.calc_precs_f1s(
+                vec_gold, vec_pred, total_positives)
 
         if self.args.debug:
             print("DEBUG:PredList:", " ".join(
@@ -352,6 +334,44 @@ class Main(object):
         indexes = xrange(1, len(relevances))
         return (relevances[0] if relevances else 0) \
                 + sum(relevances[i] / math.log(i+1, 2) for i in indexes)
+
+
+    def calc_precs_f1s(self, vec_gold, vec_pred, total_positives):
+        r"""Return two lists of float (precs@k and F1@k)
+        for all k in 1+len(zip(vec_gold, vec_pred)).
+        """
+        precs, f1s = [float('-inf')], [float('-inf')]
+
+        n_true_positives = 0
+        # (All predictions are assumed to be positive)
+        for n_pred_positives, (value_gold, value_pred) \
+                in enumerate(zip(vec_gold, vec_pred), 1):
+            if value_gold >= self.args.gold_threshold:
+                n_true_positives += 1
+            precision = n_true_positives / n_pred_positives
+            recall = n_true_positives / total_positives
+            precs.append(precision)
+            if precision == 0 or recall == 0:
+                f1s.append(float("-inf"))
+            else:
+                f1s.append(2 / ((1/precision) + (1/recall)))
+        return precs, f1s
+
+
+    def check_missing(self):
+        r"""Complain about missing gold/value keys."""
+        sample_col_gold = self.columns_gold[self.parser_gold.colnames[0]]
+        sample_col_pred = self.columns_pred[self.parser_pred.colnames[0]]
+        missing_in_pred = [kG for kG in sample_col_gold if kG not in sample_col_pred]
+        missing_in_gold = [kP for kP in sample_col_pred if kP not in sample_col_gold]
+
+        if missing_in_gold:
+            warn("{n} keys (e.g. `{key}`) not found in gold file; " \
+                    "will use 0.0", n=len(missing_in_gold), key=missing_in_gold[0])
+
+        if missing_in_pred:
+            warn("{n} keys (e.g. `{key}`) not found in prediction file; " \
+                    "will use avg(predictions)", n=len(missing_in_pred), key=missing_in_pred[0])
 
 
 #####################################################
