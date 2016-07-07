@@ -205,7 +205,7 @@ class Main(object):
                     key=lambda item: item[1], reverse=True)  # descending order
             for key_pred, value_pred in ordered_gold_items:
                 vec_pred.append(value_pred)
-                vec_gold.append(self.columns_gold[col_gold][key_pred])
+                vec_gold.append(self.columns_gold[col_gold].get(key_pred, 0.0))
             self.calc_print_precision(vec_gold, vec_pred)
 
             ############################################################
