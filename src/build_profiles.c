@@ -59,7 +59,6 @@ void usage() {
 
 void read_input_file( char *filename ) {
   FILE *input = open_file_read( filename );
-  char *target_buff, *context_buff;
   int r, t_len, c_len;
   double count;  
   t_dict = g_hash_table_new_full( &g_int_hash, &g_int_equal, 
@@ -70,16 +69,16 @@ void read_input_file( char *filename ) {
            free, free );          
   inv_symbols_dict = g_hash_table_new_full( &g_int_hash, &g_int_equal, 
            NULL, NULL );              
-  // Reads potentially large strings from file
-  target_buff = malloc( 1000 * sizeof( char ) );
-  context_buff = malloc( 1000 * sizeof( char ) );
+
   while( !feof( input ) ) {
+    char *target_buff = NULL;
+    char *context_buff = NULL;
     // Read the strings and count from the file
-    r = fscanf( input, "%s\t%s\t%lf", target_buff, context_buff, &count );
+    r = fscanf( input, "%ms %ms %lf", &target_buff, &context_buff, &count ); // Reads potentially large strings from file
     // Shrink the strings to minimal memory, reject too large words    
-    t_len = strlen( target_buff ); 
-    c_len = strlen( context_buff );
-    if( r == 3 && !feof( input ) ) {
+    if( r == 3 ) {
+        t_len = strlen( target_buff ); 
+        c_len = strlen( context_buff );
         if( t_len <= MAX_S && c_len <= MAX_S ) {
             //perra( "Target:\"%s\" Context:\"%s\"\n",target,context );        
             insert_into_index( t_dict, symbols_dict, inv_symbols_dict, target_buff, context_buff, t_len, c_len, count, &idc_t );
@@ -92,9 +91,11 @@ void read_input_file( char *filename ) {
             perra( "Word length (%d,%d) => max is %d\n", t_len, c_len, MAX_S );
         }
     }
+    free( target_buff );
+    free( context_buff );
+    target_buff = NULL;
+    context_buff = NULL;
   }
-  free( target_buff );
-  free( context_buff );
   fclose( input );
 }
 
